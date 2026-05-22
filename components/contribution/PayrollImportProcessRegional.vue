@@ -447,7 +447,7 @@ export default {
             if(this.e1 == 2) {
                 this.title_dialog = "¿Está seguro de realizar la validación?"
             } else if(this.e1 == 3) {
-                this.title_dialog = "¿Está seguro de crear afiliados e importar la plantilla?"
+                this.title_dialog = "¿Está seguro de importar la plantilla?"
             } else if(this.e1 >= 4) {
                 this.title_dialog = "¿Está seguro de realizar la importación de aportes?"
             }
@@ -658,7 +658,7 @@ export default {
                 this.validateData()
             } else if(this.e1 == 3) {
                 this.importPayroll()
-            } else if(this.e1 = 4) {
+            } else if(this.e1 == 4) {
                 this.importContribution()
             }
         },

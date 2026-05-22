@@ -212,6 +212,17 @@ export default {
         type: "xls",
         permissions: "sin-permiso",
         name_download: "Reporte_posibles_duplicados"
+      },
+      {
+        id: 9,
+        name: "Reporte de tramites de FRCAM",
+        tab: 2,
+        criterios: ["start_date", "end_date"],
+        method: "post",
+        service: "/report/report_procedures_frcam",
+        type: "xls",
+        permissions: "sin-permiso",
+        name_download: "Reporte_tramites_FRCAM"
       }
     ]
   },

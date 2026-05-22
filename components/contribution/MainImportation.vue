@@ -113,7 +113,7 @@
                           fab
                           v-on="on"
                           :loading="loading_rep_state && i == loading_pos_index"
-                          @click.stop="loading_pos_index = i; reportPayroll(item.period_month,item.period_day,false)"
+                          @click.stop="loading_pos_index = i; reportPayroll(item.period_month,item.period_day, 'mensual')"
                         >
                           <v-icon>mdi-file-document</v-icon>
                         </v-btn>
@@ -162,8 +162,57 @@
                             :color="'primary'"
                             fab
                             v-on="on"
-                            :loading="loading_rep_state && j == loading_pos_index"
-                            @click.stop="loading_pos_index = j; reportPayroll(item.period_month,item.period_day ? item.period_day : '01',true)"
+                            :loading="loading_rep_state_re && i == loading_pos_index_re"
+                            @click.stop="loading_pos_index_re = i; reportPayroll(item.period_month,item.period_day ? item.period_day : '01','reintegro')"
+                          >
+                            <v-icon>mdi-file-document</v-icon>
+                          </v-btn>
+                        </template>
+                        <div>
+                          <span>Detalle de Importación de registros válidos</span>
+                        </div>
+                      </v-tooltip>
+                    </div>
+                </v-col>
+              </v-row>
+            </v-card-text>
+          </template>
+        </v-card>
+        <!--ADICIONALES-->
+        <v-card
+          class="headline font-weight-bold ma-2"
+          max-width="250px"
+          v-for="(item, k) in list_months_ad"
+          :key="'ad'+k"
+        >
+          <template>
+            <v-card-title class="info">
+              <v-row justify="center">
+                <h3 class="white--text">Adicional {{ item.period_month_name }}</h3></v-row
+              >
+            </v-card-title>
+            <v-divider inset></v-divider>
+            <v-card-text class="backgroundCard">
+              <v-row>
+                <v-col cols="12" md="12" class="py-0">
+                  <b>{{ item_import.name }} <v-icon small>mdi-home-analytics</v-icon></b>
+                </v-col>
+                <v-divider inset></v-divider>
+                <v-col cols="12" md="12" class="py-0">
+                  <span class="info--text">N° reg. copiados: </span><strong>{{$filters.thousands(item.data_count.num_total_data_copy)}}</strong><br>
+                  <span class="info--text">N° reg. nuevos: </span><strong>{{$filters.thousands(item.data_count.num_data_new)}}</strong><br>
+                  <span class="info--text">N° reg. regulares: </span><strong>{{$filters.thousands(item.data_count.num_data_regular)}}</strong><br>
+
+                    <div class="text-right pb-1" v-if="permissionSimpleSelected.includes(item_import.permissions_download)">
+                      <v-tooltip top class="my-0">
+                        <template v-slot:activator="{ on }">
+                          <v-btn
+                            small
+                            :color="'primary'"
+                            fab
+                            v-on="on"
+                            :loading="loading_rep_state_ad && k == loading_pos_index_ad"
+                            @click.stop="loading_pos_index_ad = k; reportPayroll(item.period_month,item.period_day ? item.period_day : '01','adicional')"
                           >
                             <v-icon>mdi-file-document</v-icon>
                           </v-btn>
@@ -186,6 +235,7 @@
       :year_selected="year_selected" 
       :list_months_not_import.sync="list_months_not_import" 
       :list_months_not_import_re.sync="list_months_not_import_re"
+      :list_months_not_import_ad.sync="list_months_not_import_ad"
       @open-close="openClose()"
     />
     <PayrollImportProcessTranscript 
@@ -243,7 +293,9 @@ export default {
     list_months: [],
     list_months_not_import: [],
     list_months_not_import_re: [],
+    list_months_not_import_ad: [],
     list_months_re: [],
+    list_months_ad: [],
     list_dates: [],
     dialog: false,
     dialog_transcript: false,
@@ -252,7 +304,11 @@ export default {
     btn_import_contributions: false,
     loading_circular:false,
     loading_pos_index: -1,
+    loading_pos_index_re: -1,
+    loading_pos_index_ad: -1,
     loading_rep_state: false,
+    loading_rep_state_re: false,
+    loading_rep_state_ad: false,
     items_import: [],
     cancelToken: null,
     current_date: null,
@@ -305,6 +361,8 @@ export default {
           if(this.item_import.name == 'COMANDO'){
             this.list_months_re = res.payload.list_months_re;
             this.list_months_not_import_re = res.payload.list_months_not_import_re;
+            this.list_months_ad = res.payload.list_months_ad;
+            this.list_months_not_import_ad = res.payload.list_months_not_import_ad;
           }
         }
         this.loading_circular = false
@@ -329,9 +387,12 @@ export default {
       else
       this.month_selected= null
     },
-    async reportPayroll(month_selected,day_selected,var_reimbursement){
+    async reportPayroll(month_selected,day_selected,var_type_payroll){
       this.month_selected = month_selected
-      this.loading_rep_state=true;
+      if(var_type_payroll == 'reintegro') this.loading_rep_state_re=true;
+      else if(var_type_payroll == 'adicional') this.loading_rep_state_ad=true;
+      else this.loading_rep_state=true;
+
       try {
         let params ={}
         if(this.item_import.name != 'DISPONIBILIDAD' && this.item_import.name != 'REGIONAL'){
@@ -341,7 +402,7 @@ export default {
           params.date_import= this.dateFormat(this.year_selected, day_selected, this.month_selected)
         }
         if (this.item_import.name == 'COMANDO') {
-          params.reimbursement = var_reimbursement?'TRUE':'FALSE';
+          params.type_payroll = var_type_payroll ? var_type_payroll : 'mensual';
         }
         if(this.item_import.name == 'REGIONAL'){
           params.date_import= this.dateFormat(this.year_selected, day_selected, this.month_selected)
@@ -360,7 +421,11 @@ export default {
         console.log(e);
       } finally {
         this.loading_rep_state=false;
+        this.loading_rep_state_re=false;
+        this.loading_rep_state_ad=false;
         this.loading_pos_index=-1;
+        this.loading_pos_index_re=-1;
+        this.loading_pos_index_ad=-1;
       }
     },
     openClose(newValue) {

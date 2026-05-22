@@ -66,7 +66,7 @@
                       <v-btn 
                         class="ma-2 accent white--text btn-period" 
                         v-on="on"
-                        @click="confirmImportContribution(item.period_month, true, false)"
+                        @click="confirmImportContribution(item.period_month, true, 'mensual')"
                         :disabled="item.state_importation"
                       >
                         <v-icon dark left small>mdi-arrow-down</v-icon>Imp. Aportes
@@ -139,7 +139,7 @@
                       <v-btn 
                         class="ma-2 accent white--text btn-period" 
                         v-on="on"
-                        @click="confirmImportContribution(item.period_month, true, true)"
+                        @click="confirmImportContribution(item.period_month, true, 'reintegro')"
                         :disabled="item.state_importation"
                       >
                         <v-icon dark left small>mdi-arrow-down</v-icon>Imp. Aportes
@@ -162,7 +162,74 @@
                           fab
                           v-on="on"
                           :loading="loading_rep_state_re && i == loading_pos_index_re"
-                          @click.stop="loading_pos_index_re = i; reportImportReimbursement(item.period_month)"
+                          @click.stop="loading_pos_index_re = i; reportImportReimbursement(item.period_month, 'reintegro')"
+                        >
+                          <v-icon>mdi-file-document</v-icon>
+                        </v-btn>
+                      </template>
+                      <div>
+                        <span>Detalle de Aportes</span>
+                      </div>
+                    </v-tooltip>
+                  </div>
+                </div>
+
+              </v-col>
+            </v-row>
+          </v-card-text>
+        </template>
+      </v-card>
+      <!--ADICIONALES-->
+      <v-card
+        :class="item.state_importation ? 'headline font-weight-bold ma-2 backgroundCard' : 'headline font-weight-bold ma-2'"
+        max-width="250px"
+        v-for="(item, i) in list_months_ad"
+        :key="'ad-' + item.period_month"
+      >
+        <template v-if="item.state_validated_payroll">
+          <v-card-title :class="item.state_importation ? 'accent' : 'normal'">
+            <v-row justify="center">
+              <h3 class="white--text">Adicional {{ item.period_month_name }}</h3>
+            </v-row>
+          </v-card-title>
+          <v-divider inset></v-divider>
+          <v-card-text>
+            <v-row>
+
+              <v-col cols="12" md="12" class="py-0">
+                <span class="info--text">N° reg. validados: </span
+                ><strong>{{$filters.thousands(item.data_count.num_data_validated) }}</strong
+                >
+
+                <v-tooltip top>
+                    <template v-slot:activator="{ on }">
+                      <v-btn 
+                        class="ma-2 accent white--text btn-period" 
+                        v-on="on"
+                        @click="confirmImportContribution(item.period_month, true, 'adicional')"
+                        :disabled="item.state_importation"
+                      >
+                        <v-icon dark left small>mdi-arrow-down</v-icon>Imp. Aportes
+                      </v-btn>
+                    </template>
+                    <div>
+                      <span>Importar Aportes</span>
+                    </div>
+                </v-tooltip>
+  
+                <div v-show="item.state_importation">
+                    <span class="info--text">N° reg. importados: </span><strong>{{$filters.thousands(item.data_count.num_total_data_contributions)}}</strong><br>
+                    <span class="info--text">Total aportes Bs.: </span><strong>{{$filters.money(item.data_count.sum_amount_total_contributions)}}</strong><br>
+                  <div class="text-right pb-1" >
+                    <v-tooltip top class="my-0" v-if="permissionSimpleSelected.includes(type_import.permissions_download)">
+                      <template v-slot:activator="{ on }">
+                        <v-btn
+                          small
+                          :color="'info'"
+                          fab
+                          v-on="on"
+                          :loading="loading_rep_state_ad && i == loading_pos_index_ad"
+                          @click.stop="loading_pos_index_ad = i; reportImportReimbursement(item.period_month, 'adicional')"
                         >
                           <v-icon>mdi-file-document</v-icon>
                         </v-btn>
@@ -230,6 +297,7 @@ export default {
     year_selected: null,
     list_months: [],
     list_months_re: [],
+    list_months_ad: [],
     dialog: false,
     month_selected: null,
     data_count:{
@@ -244,15 +312,17 @@ export default {
     loading_circular: false,
     loading_pos_index: -1,
     loading_pos_index_re: -1,
+    loading_pos_index_ad: -1,
     loading_rep_state: false,
     loading_rep_state_re: false,
+    loading_rep_state_ad: false,
     items_import: [],
     type_import:{},
     import_type_name: {
       SENASIR: 'senasir',
       COMANDO: 'command',
     },
-    command_reimbursement:false
+    type_payroll: 'mensual'
   }),
   created() {
      this.items_import= [
@@ -343,6 +413,7 @@ export default {
         this.list_months = res.payload.list_months
         if(this.type_import.name == 'COMANDO'){
           this.list_months_re = res.payload.list_months_re
+          this.list_months_ad = res.payload.list_months_ad
         }
         this.loading_circular = false
         console.log(this.year_selected);
@@ -363,8 +434,7 @@ export default {
           period_contribution: this.dateFormat
         }
         if(this.type_import.name == 'COMANDO'){
-          params.reimbursement = this.command_reimbursement?'TRUE':'FALSE';
-
+          params.type_payroll = this.type_payroll;
         }
         let res = await this.$axios.post(`${this.type_import.route_import_contribution}`,params);
         if (res.payload.successfully) {
@@ -377,14 +447,15 @@ export default {
         this.btn_import_contributions = false
       } catch (e) {
         console.log(e);
+        this.$toast.error(e.message || 'Error al realizar la importación')
         this.btn_import_contributions = false
         this.dialog_confirm_import_contribution= false
       }
     },
-    confirmImportContribution(month_selected, dialog, reimbursement){
+    confirmImportContribution(month_selected, dialog, type_payroll){
       this.month_selected = month_selected
       this.dialog_confirm_import_contribution = dialog
-      this.command_reimbursement = reimbursement
+      this.type_payroll = type_payroll
       console.log( month_selected)
     },
 
@@ -411,12 +482,15 @@ export default {
         this.loading_pos_index=-1;
       }
     },
-    async reportImportReimbursement(month_selected){
+    async reportImportReimbursement(month_selected, type_payroll){
       this.month_selected = month_selected
-      this.loading_rep_state_re=true;
+      if(type_payroll == 'reintegro') this.loading_rep_state_re=true;
+      else this.loading_rep_state_ad=true;
+
       try {
         let res = await this.$axios.post(`/contribution/report_import_reimbursement_command`,{
-            date_contribution: this.dateFormat
+            date_contribution: this.dateFormat,
+            type_payroll: type_payroll
           },
           {'Accept': 'application/vnd.ms-excel' },
           {'responseType': 'blob'}
@@ -424,14 +498,17 @@ export default {
         const url = window.URL.createObjectURL(new Blob([res]))
         const link = document.createElement("a")
         link.href = url;
-        link.setAttribute("download", `ReporteDetalleReintegrosComando.xls`)
+        let file_name = type_payroll == 'reintegro' ? 'ReporteDetalleReintegrosComando.xls' : 'ReporteDetalleAdicionalesComando.xls';
+        link.setAttribute("download", file_name)
         document.body.appendChild(link)
         link.click()
       } catch (e) {
         console.log(e);
       } finally {
         this.loading_rep_state_re=false;
+        this.loading_rep_state_ad=false;
         this.loading_pos_index_re=-1;
+        this.loading_pos_index_ad=-1;
       }
     },
   },
