@@ -21,16 +21,18 @@
                         <div class="text-right"><Information :title="information.title" :parameters="information.parameters"/></div>
                     </v-toolbar-title>
                     <template v-if="item_import.name == 'COMANDO'">
-                        <v-checkbox
-                          v-model="command_reimbursement"
-                          label="La importación es reintegro?"
-                          class="py-0 my-0"
-                          color="teal"
-                        ></v-checkbox>
+                        <v-select
+                            dense
+                            :items="types_payroll"
+                            label="Tipo de Planilla"
+                            v-model="type_payroll"
+                            outlined
+                            class="py-0 my-0"
+                        ></v-select>
                     </template>
                     <v-select
                         dense
-                        :items="command_reimbursement? list_months_not_import_re :list_months_not_import"
+                        :items="type_payroll == 'reintegro' ? list_months_not_import_re : (type_payroll == 'adicional' ? list_months_not_import_ad : list_months_not_import)"
                         item-text="period_month_name"
                         item-value="period_month"
                         :label="'Periódo para importar'"
@@ -239,7 +241,12 @@ export default {
         btn_rollback: false,
         dialog_confirm: false,
         dialog_confirm_import: false,
-        command_reimbursement:false,
+        type_payroll: 'mensual',
+        types_payroll: [
+            { text: 'Mensual', value: 'mensual' },
+            { text: 'Reintegro', value: 'reintegro' },
+            { text: 'Adicional', value: 'adicional' }
+        ],
         loading_select: false,
 
         information: {
@@ -274,6 +281,10 @@ export default {
             type: Array,
             requiered: true
         },
+        list_months_not_import_ad: {
+            type: Array,
+            requiered: true
+        },
         year_selected: null,
     },
     computed: {
@@ -287,6 +298,10 @@ export default {
     watch: {
         dialog: function() {
             //this.getSimpleMonths()
+        },
+        type_payroll: function() {
+            this.month_selected = null
+            this.clearData()
         }
     },
     methods: {
@@ -326,7 +341,7 @@ export default {
                   date_payroll: this.dateFormat
                 };
                 if (this.item_import.name == 'COMANDO') {
-                  params.reimbursement = this.command_reimbursement?'TRUE':'FALSE';
+                  params.type_payroll = this.type_payroll;
                 }
                 let res = await this.$axios.post(`${this.item_import.route_import_progressBar}`,params);
 
@@ -349,7 +364,7 @@ export default {
             formData.append("file", this.import_export.file);
             formData.append("date_payroll", this.dateFormat);
             if(this.item_import.name == 'COMANDO'){
-                formData.append("reimbursement", this.command_reimbursement?'TRUE':'FALSE')
+                formData.append("type_payroll", this.type_payroll)
             }
             try {
                 let res = await this.$axios.post(`${this.item_import.route_upload_file}`,
@@ -387,7 +402,7 @@ export default {
                   date_payroll: this.dateFormat
                 }
                 if (this.item_import.name == 'COMANDO') {
-                  params.reimbursement = this.command_reimbursement?'TRUE':'FALSE';
+                  params.type_payroll = this.type_payroll;
                 }
 
                 let res = await this.$axios.post(`${this.item_import.route_rollback_contribution}`,params);
@@ -411,7 +426,7 @@ export default {
                 };
 
                 if (this.item_import.name == 'COMANDO') {
-                  params.reimbursement = this.command_reimbursement?'TRUE':'FALSE';
+                  params.type_payroll = this.type_payroll;
                 }
                 let res = await this.$axios.post(`${this.item_import.route_validate_data}`, params);
 
@@ -456,7 +471,7 @@ export default {
                   date_payroll: this.dateFormat
                 };
                 if (this.item_import.name == 'COMANDO') {
-                  params.reimbursement = this.command_reimbursement?'TRUE':'FALSE';
+                  params.type_payroll = this.type_payroll;
                 }
                 let res = await this.$axios.post(`${this.item_import.route_report}`,params,
                     {'Accept': 'application/vnd.ms-excel' },
